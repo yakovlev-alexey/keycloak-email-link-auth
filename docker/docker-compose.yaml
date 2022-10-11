@@ -1,0 +1,17 @@
+version: "3.2"
+
+services:
+  keycloak:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      args:
+        - KEYCLOAK_IMAGE=${KEYCLOAK_IMAGE}
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      DB_VENDOR: h2
+    volumes:
+      - ./h2:/opt/keycloak/data/h2
+    ports:
+      - "8024:8080"
