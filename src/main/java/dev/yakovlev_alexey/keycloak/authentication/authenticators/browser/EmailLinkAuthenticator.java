@@ -3,8 +3,10 @@ package dev.yakovlev_alexey.keycloak.authentication.authenticators.browser;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
@@ -20,9 +22,11 @@ import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.Urls;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -40,13 +44,59 @@ public class EmailLinkAuthenticator implements Authenticator {
     }
 
     @Override
-    public void action(AuthenticationFlowContext context) {
-        // TODO Auto-generated method stub
+    public void authenticate(AuthenticationFlowContext context) {
+        // the method gets called when first reaching this authenticator and after page
+        // refreshes
+        AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        KeycloakSession session = context.getSession();
+        RealmModel realm = context.getRealm();
+        UserModel user = context.getUser();
+
+        // cant really do anything without smtp server
+        if (realm.getSmtpConfig().isEmpty()) {
+            ServicesLogger.LOGGER.smtpNotConfigured();
+            context.attempted();
+            return;
+        }
+
+        // if email was verified allow the user to continue
+        if (Objects.equals(authSession.getAuthNote(EMAIL_LINK_VERIFIED), user.getEmail())) {
+            context.success();
+            return;
+        }
+
+        // do not allow resending e-mail by simple page refresh
+        if (!Objects.equals(authSession.getAuthNote(Constants.VERIFY_EMAIL_KEY), user.getEmail())) {
+            authSession.setAuthNote(Constants.VERIFY_EMAIL_KEY, user.getEmail());
+            sendVerifyEmail(session, context, user);
+        } else {
+            showEmailSentPage(context, user);
+        }
     }
 
     @Override
-    public void authenticate(AuthenticationFlowContext context) {
-        // TODO Auto-generated method stub
+    public void action(AuthenticationFlowContext context) {
+        // this method gets called when user submits the form
+        AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        KeycloakSession session = context.getSession();
+        UserModel user = context.getUser();
+
+        // if link was already open continue authentication
+        if (Objects.equals(authSession.getAuthNote(EMAIL_LINK_VERIFIED), user.getEmail())) {
+            context.success();
+            return;
+        }
+
+        MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+        String action = formData.getFirst("submitAction");
+
+        // if the form was submitted with an action of `resend` resend the email
+        // otherwise just show the same page
+        if (action != null && action.equals("resend")) {
+            sendVerifyEmail(session, context, user);
+        } else {
+            showEmailSentPage(context, user);
+        }
     }
 
     @Override
@@ -86,7 +136,7 @@ public class EmailLinkAuthenticator implements Authenticator {
                     .setUser(user)
                     .setAuthenticationSession(authSession)
                     // hard-code some of the variables - we will return here later
-                    .send("emailLinkSubject", "email-link.ftl", attributes);
+                    .send("emailLinkSubject", "email-link-email.ftl", attributes);
 
             event.success();
         } catch (EmailException e) {
