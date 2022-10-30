@@ -98,4 +98,11 @@ public class EmailLinkActionTokenHandler extends AbstractActionTokenHandler<Emai
                 .createInfoPage();
     }
 
+    // we do not really want users to authenticate using the same link multiple
+    // times
+    @Override
+    public boolean canUseTokenRepeatedly(EmailLinkActionToken token,
+            ActionTokenContext<EmailLinkActionToken> tokenContext) {
+        return false;
+    }
 }
