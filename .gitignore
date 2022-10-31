@@ -3,3 +3,5 @@ docker/h2
 
 docker/plugins/*
 !docker/plugins/.gitkeep
+
+.vscode
