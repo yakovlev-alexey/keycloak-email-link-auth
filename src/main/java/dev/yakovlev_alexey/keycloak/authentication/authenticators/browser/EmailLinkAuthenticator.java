@@ -22,6 +22,7 @@ import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -32,6 +33,8 @@ import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import dev.yakovlev_alexey.keycloak.authentication.actiontoken.emaillink.EmailLinkActionToken;
+import dev.yakovlev_alexey.keycloak.emaillink.ConfigurationProperties;
+import dev.yakovlev_alexey.keycloak.emaillink.Messages;
 
 public class EmailLinkAuthenticator implements Authenticator {
     public static final String EMAIL_LINK_VERIFIED = "EMAIL_LINK_VERIFIED";
@@ -78,6 +81,7 @@ public class EmailLinkAuthenticator implements Authenticator {
     public void action(AuthenticationFlowContext context) {
         // this method gets called when user submits the form
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         KeycloakSession session = context.getSession();
         UserModel user = context.getUser();
 
@@ -88,11 +92,12 @@ public class EmailLinkAuthenticator implements Authenticator {
         }
 
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
-        String action = formData.getFirst("submitAction");
+        String action = formData
+                .getFirst(dev.yakovlev_alexey.keycloak.emaillink.Constants.EMAIL_LINK_SUBMIT_ACTION_KEY);
 
         // if the form was submitted with an action of `resend` resend the email
         // otherwise just show the same page
-        if (action != null && action.equals("resend")) {
+        if (action != null && action.equals(config.getConfig().get(ConfigurationProperties.RESEND_ACTION))) {
             sendVerifyEmail(session, context, user);
         } else {
             showEmailSentPage(context, user);
@@ -117,6 +122,7 @@ public class EmailLinkAuthenticator implements Authenticator {
     private void sendVerifyEmail(KeycloakSession session, AuthenticationFlowContext context, UserModel user)
             throws UriBuilderException, IllegalArgumentException {
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         RealmModel realm = session.getContext().getRealm();
 
         // use the same lifespan as other tokens by getting from realm configuration
@@ -136,7 +142,8 @@ public class EmailLinkAuthenticator implements Authenticator {
                     .setUser(user)
                     .setAuthenticationSession(authSession)
                     // hard-code some of the variables - we will return here later
-                    .send("emailLinkSubject", "email-link-email.ftl", attributes);
+                    .send(config.getConfig().get(Messages.EMAIL_LINK_SUBJECT),
+                            config.getConfig().get((ConfigurationProperties.EMAIL_TEMPLATE)), attributes);
 
             event.success();
         } catch (EmailException e) {
@@ -205,6 +212,7 @@ public class EmailLinkAuthenticator implements Authenticator {
      * Displays email link form
      */
     protected void showEmailSentPage(AuthenticationFlowContext context, UserModel user) {
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         String accessCode = context.generateAccessCode();
         URI action = context.getActionUrl(accessCode);
 
@@ -212,7 +220,7 @@ public class EmailLinkAuthenticator implements Authenticator {
                 .setStatus(Response.Status.OK)
                 .setActionUri(action)
                 .setExecution(context.getExecution().getId())
-                .createForm("email-link-form.ftl");
+                .createForm(config.getConfig().get(ConfigurationProperties.PAGE_TEMPLATE));
 
         context.forceChallenge(challenge);
     }

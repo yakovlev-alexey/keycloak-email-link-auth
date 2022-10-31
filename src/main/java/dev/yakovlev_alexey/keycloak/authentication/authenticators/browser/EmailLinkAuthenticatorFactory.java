@@ -8,6 +8,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
+import dev.yakovlev_alexey.keycloak.emaillink.ConfigurationProperties;
+
 import java.util.List;
 
 public class EmailLinkAuthenticatorFactory implements AuthenticatorFactory {
@@ -35,7 +37,7 @@ public class EmailLinkAuthenticatorFactory implements AuthenticatorFactory {
 
 	@Override
 	public boolean isConfigurable() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -53,7 +55,7 @@ public class EmailLinkAuthenticatorFactory implements AuthenticatorFactory {
 
 	@Override
 	public List<ProviderConfigProperty> getConfigProperties() {
-		return null;
+		return ConfigurationProperties.PROPERTIES;
 	}
 
 	@Override

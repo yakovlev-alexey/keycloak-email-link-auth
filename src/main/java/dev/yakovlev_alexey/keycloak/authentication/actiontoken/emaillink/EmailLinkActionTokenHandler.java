@@ -11,11 +11,11 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.AuthenticationSessionManager;
-import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import dev.yakovlev_alexey.keycloak.authentication.authenticators.browser.EmailLinkAuthenticator;
+import dev.yakovlev_alexey.keycloak.emaillink.Messages;
 
 import java.util.Collections;
 
@@ -27,7 +27,7 @@ public class EmailLinkActionTokenHandler extends AbstractActionTokenHandler<Emai
         super(
                 EmailLinkActionToken.TOKEN_TYPE,
                 EmailLinkActionToken.class,
-                Messages.STALE_VERIFY_EMAIL_LINK,
+                Messages.EMAIL_LINK_STALE,
                 EventType.VERIFY_EMAIL,
                 Errors.INVALID_TOKEN);
     }
@@ -94,7 +94,7 @@ public class EmailLinkActionTokenHandler extends AbstractActionTokenHandler<Emai
         // show success page
         return session.getProvider(LoginFormsProvider.class)
                 .setAuthenticationSession(authSession)
-                .setSuccess(Messages.EMAIL_VERIFIED, token.getEmail())
+                .setSuccess(Messages.EMAIL_LINK_SUCCESS, token.getEmail())
                 .createInfoPage();
     }
 
